@@ -1,0 +1,731 @@
+/* Booking Page CSS */
+@font-face {
+  font-family: Outfit;
+  src: url(assets/Outfit-VariableFont_wght.ttf);
+}
+@keyframes slideFromRight {
+  from {
+    left: 100%;
+  }
+  to {
+    left: 45%;
+  }
+}
+
+@keyframes slideInFromLeft {
+  0% {
+    transform: translateX(-70%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes zoomIn {
+  from {
+    transform: scale(0);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+@keyframes floatIn {
+  0% {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.floating-in {
+  animation: floatIn 0.8s ease-out;
+}
+button {
+  cursor: pointer;
+  background-color: transparent;
+  border: none;
+  outline: none;
+}
+.hidden {
+  display: none;
+}
+body {
+  margin: 0;
+  background-color: #f5f6f9;
+  overflow-x: hidden;
+  padding: 0;
+  min-height: 100vh;
+}
+.header {
+  background-color: #f5f6f9;
+  width: 100%;
+  height: 10%;
+  margin-top: 0px;
+  position: fixed;
+  z-index: 10000;
+  top: 0%;
+  padding: 10px 20px;
+  display: flex; /* Enable flexbox layout */
+  justify-content: space-between; /* Distribute space between items */
+  align-items: center;
+}
+
+.header ul {
+  list-style: none; /* Remove bullet points */
+  margin: 0;
+  padding: 0;
+  display: flex; /* Make the list items align horizontally */
+  align-items: center; /* Vertically align the list items */
+}
+
+.header li {
+  margin-right: 20px; /* Add spacing between list items */
+}
+
+/* Optional: Style the menu items */
+.menu ul {
+  display: flex;
+}
+
+.menu li {
+  margin-left: 40px;
+  margin-top: 21px;
+}
+.content {
+  margin-top: 100px;
+}
+ul {
+  list-style-type: none;
+  padding: 0;
+  overflow: hidden;
+}
+
+li {
+  float: left;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  margin-top: 10px;
+  margin-right: 4px;
+  margin-left: 20px;
+}
+
+.menu {
+  display: flex; /* Make menu items horizontal */
+  margin-left: 20px;
+  align-items: center; /* Align menu items vertically */
+}
+
+.menu div {
+  display: block;
+  padding: 30px;
+  padding-top: 10px;
+  text-decoration: none;
+  text-align: center;
+  font-family: Outfit;
+  font-size: 17px;
+  color: #332b46;
+  transition: background-color 0.3s ease, color 0.3s ease;
+  height: 8px;
+  border-radius: 100px;
+}
+.menu div:hover {
+  background-color: #276afd;
+  transition: background-color 0.3s ease, color 0.3s ease;
+  color: white;
+  cursor: pointer;
+}
+.Sign li {
+  margin-top: 0px;
+  display: block;
+  text-decoration: none;
+  font-family: Outfit;
+  font-size: 18px;
+  padding: 10px;
+  padding-top: 18px;
+  margin-right: 0px;
+  float: right;
+}
+.Sign li:hover {
+  transform: scale(1.1);
+  transition: transform 0.3s ease;
+}
+.Sign a {
+  text-decoration: none;
+}
+
+.bitra {
+  font-family: Outfit;
+  font-size: 40px;
+  font-weight: 600;
+}
+
+.separator {
+  display: inline-block;
+  width: 2cm;
+  height: 5px;
+  background-color: #276afd;
+  margin-top: 27px;
+  border-color: #276afd;
+  border: 1cap;
+  border-radius: 5px;
+}
+
+.halfMap {
+  position: absolute;
+  z-index: -1;
+  top: -21%;
+  left: 100%;
+  animation: slideFromRight 1.5s ease-out forwards;
+}
+
+.Find {
+  position: absolute;
+  top: 90px;
+  left: 65px;
+  color: black;
+  font-family: Outfit;
+  font-size: 40px;
+  font-weight: 600;
+  animation: slideInFromLeft 0.8s ease-out;
+}
+
+.FlightType {
+  position: absolute;
+  text-decoration: none;
+  height: 40px;
+  width: 120px;
+  font-family: Outfit;
+  color: gray;
+  background-color: white;
+  border-radius: 20px;
+  border-color: white;
+  top: 195px;
+  left: 65px;
+  font-size: 16px;
+  margin-right: 10px;
+  border: none;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  animation: zoomIn 0.8s ease-out;
+}
+
+.FlightType1 {
+  position: absolute;
+  text-decoration: none;
+  height: 42px;
+  width: 120px;
+  font-family: Outfit;
+  color: gray;
+  background-color: white;
+  border-radius: 20px;
+  border-color: white;
+  top: 195px;
+  left: 195px;
+  font-size: 16px;
+  margin-right: 50px;
+  border: none;
+  cursor: pointer;
+  animation: zoomIn 0.8s ease-out;
+}
+.FlightType:hover {
+  background-color: #276afd;
+  color: white;
+}
+.FlightType1:hover {
+  background-color: #276afd;
+  color: white;
+}
+.arrow {
+  position: absolute;
+  top: 200px;
+  left: 200px;
+  width: 0;
+  height: 0;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 10px solid grey;
+}
+
+.from-to {
+  background-color: white;
+  height: 200px;
+  width: 670px;
+  border-radius: 25px;
+  border-color: white;
+  padding: 20px;
+  animation: zoomIn 0.8s ease-out;
+}
+
+.search-form {
+  position: absolute;
+  left: 60px;
+  top: 260px;
+  background-color: transparent;
+}
+.from {
+  color: #276afd;
+  font-family: Outfit;
+  font-weight: bold;
+}
+
+.from-input {
+  border: none;
+  color: black;
+  font-family: Outfit;
+  font-size: 30px;
+  font-weight: 400;
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
+.to {
+  color: #276afd;
+  font-family: Outfit;
+  font-weight: bold;
+  margin-top: 18px;
+}
+
+.to-input {
+  border: none;
+  color: black;
+  font-family: Outfit;
+  font-size: 50px;
+  font-size: 400;
+}
+
+.separator1 {
+  position: relative;
+  left: 3%;
+  border-radius: 4px;
+  background-color: #e8e8e8;
+  border-color: #e8e8e8;
+  border: none;
+}
+.from-input::placeholder,
+.to-input::placeholder {
+  color: #e8e8e8;
+  font-family: Outfit;
+  font-size: 25px;
+}
+
+.from-input:focus,
+.to-input:focus {
+  outline: none;
+}
+.RefreshButton {
+  background-color: transparent;
+  border: none;
+  outline: none;
+  cursor: pointer;
+}
+.refresh {
+  position: absolute;
+  top: 100px;
+  left: 635px;
+}
+
+.refresh:hover {
+  transform: scale(1.1);
+  transition: transform 0.3s ease;
+}
+
+.DepartureDate {
+  position: absolute;
+  top: 270px;
+  left: 5px;
+  height: 90px;
+  width: 230px;
+  background-color: white;
+  border-radius: 35px;
+  border-color: white;
+  animation: zoomIn 0.8s ease-out;
+}
+
+.ReturnDate {
+  position: absolute;
+  top: 270px;
+  left: 250px;
+  height: 90px;
+  width: 230px;
+  background-color: white;
+  border-radius: 35px;
+  border-color: white;
+  animation: zoomIn 0.8s ease-out;
+}
+
+.Departure {
+  z-index: 2;
+  position: absolute;
+  color: grey;
+  font-family: Outfit;
+  font-size: 20px;
+  left: 9%;
+  top: -9%;
+}
+
+.inputContainer {
+  position: relative;
+}
+
+.departure_input {
+  height: 100%;
+  position: absolute;
+  top: 11%;
+  left: 8%;
+  border: none;
+  outline: none;
+  font-family: Outfit;
+  font-size: 20px;
+  background-color: transparent;
+}
+
+.departure_input::-webkit-calendar-picker-indicator {
+  position: relative;
+  top: -10px;
+  left: -10px;
+  width: 60px;
+  height: 60px;
+  background: url("assets/GoodGoodCalendar.png") no-repeat center center;
+  background-size: contain;
+  cursor: pointer;
+  transition: left 0.3s ease;
+}
+
+.departure_input::-webkit-calendar-picker-indicator:hover {
+  transform: scale(1.1);
+  transition: transform 0.3s ease;
+}
+
+.ListPassengers {
+  position: absolute;
+  top: 160%;
+  left: 1%;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  animation: zoomIn 0.8s ease-out;
+}
+
+.passenger {
+  display: inline-block;
+  margin-right: 10px;
+}
+
+.passengerImage {
+  width: 80px;
+  height: 80px;
+  background-color: white;
+  border-radius: 50%;
+}
+
+.passengerImage:hover {
+  background-color: #c0cde6;
+}
+
+#plusSign {
+  background-color: white;
+  border-radius: 50%;
+  height: 80px;
+  width: 80px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+#plusButton:hover {
+  transform: scale(1.1);
+  transition: transform 0.3s ease;
+}
+
+.passenger_info {
+  position: absolute;
+  background-color: white;
+  border-radius: 25px;
+  height: 250px;
+  width: 670px;
+  top: 210%;
+  left: 1%;
+  animation: zoomIn 0.8s ease-out;
+}
+
+.form__group {
+  position: relative;
+  padding: 15px 0 0;
+  margin-top: 10px;
+  width: 50%;
+  margin-left: 20px;
+}
+
+.form__field {
+  font-family: Outfit;
+  width: 50%;
+  border: 0;
+  border-bottom: 2px solid #9b9b9b;
+  outline: 0;
+  font-size: 1.3rem;
+  font-family: Outfit;
+  color: black;
+  padding: 7px 0;
+  background: transparent;
+  transition: border-color 0.2s;
+
+  &::placeholder {
+    color: transparent;
+  }
+
+  &:placeholder-shown ~ .form__label {
+    font-size: 1.3rem;
+    cursor: text;
+    top: 20px;
+  }
+}
+
+.form__label {
+  position: absolute;
+  top: 0;
+  display: block;
+  transition: 0.2s;
+  font-size: 1rem;
+  font-family: Outfit;
+  color: #9b9b9b;
+}
+
+.form__field:focus {
+  ~ .form__label {
+    position: absolute;
+    top: 0;
+    display: block;
+    transition: 0.2s;
+    font-size: 1rem;
+    font-family: Outfit;
+    color: #276afd;
+    font-weight: 700;
+    padding-bottom: 6px;
+    font-weight: 700;
+    border-width: 3px;
+    border-image: linear-gradient(to right, #5b84dd, #276afd);
+    border-image-slice: 1;
+  }
+}
+
+.form__field {
+  &:required,
+  &:invalid {
+    box-shadow: none;
+  }
+}
+
+body {
+  font-family: Outfit;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  font-size: 1.5rem;
+}
+.family {
+  position: absolute;
+  top: 0%;
+  left: 30%;
+}
+
+.age {
+  position: absolute;
+  top: 50%;
+  left: 00%;
+}
+.nationality {
+  position: absolute;
+  top: 50%;
+  left: 30%;
+}
+.num_pass {
+  position: absolute;
+  top: 50%;
+  left: 60%;
+}
+.male_circle {
+  position: absolute;
+  top: 11%;
+  left: 65%;
+  height: 60px;
+  width: 60px;
+  border-radius: 50%;
+  background-color: #dee0e6;
+  color: black;
+  font-family: Outfit;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 26.5px;
+  cursor: pointer;
+}
+.female_circle {
+  position: absolute;
+  top: 11%;
+  left: 79%;
+  height: 60px;
+  width: 60px;
+  border-radius: 50%;
+  background-color: #dee0e6;
+  color: black;
+  font-family: Outfit;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 27.5px;
+  cursor: pointer;
+}
+.female_circle:hover {
+  transform: scale(1.1);
+  transition: transform 0.3s ease;
+}
+.male_circle:hover {
+  transform: scale(1.1);
+  transition: transform 0.3s ease;
+}
+
+.activeSearchButton:hover {
+  background-color: black;
+  color: white;
+  cursor: pointer;
+  transform: scale(1.1);
+}
+
+.inactiveSearchButton:hover {
+  cursor: auto;
+}
+
+.SearchButton.hidden {
+  display: none;
+}
+
+.SearchButton.appear {
+  animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.fin {
+  position: absolute;
+  top: 110%;
+  left: 80%;
+}
+.SearchButton {
+  position: absolute;
+  top: 135.5%;
+  left: 80%;
+  width: 210px;
+  height: 90px;
+  color: white;
+  font-family: Outfit;
+  border-radius: 60px;
+  outline: none;
+  font-size: 24px;
+  animation: zoomIn 0.8s ease-out;
+  transition: background-color 0.3s ease, transform 0.3s ease;
+  padding-right: 89px;
+  display: flex; /* Make the button a flex container */
+  align-items: center; /* Vertically center the content */
+  justify-content: space-between; /* Distribute space between text and arrow */
+  padding: 0 30px;
+}
+.activeSearchButton {
+  background-color: #276afd;
+  color: white;
+}
+.inactiveSearchButton {
+  background-color: #e0dcdc;
+  color: #c0baba;
+}
+.arrow {
+  transform: rotate(270deg);
+  background-color: #276afd;
+  outline: none;
+}
+
+.arrow span {
+  display: block;
+  width: 1vw;
+  height: 1vw;
+  border-right: 4px solid white;
+  border-bottom: 4px solid white;
+  outline: none;
+  background-color: #276afd;
+  transform: rotate(45deg);
+  margin: -10px;
+  animation: animate 2s infinite;
+}
+
+.arrow span:nth-child(2) {
+  animation-delay: -0.2s;
+}
+
+.arrow span:nth-child(3) {
+  animation-delay: -0.4s;
+}
+
+@keyframes animate {
+  0% {
+    opacity: 0;
+    transform: rotate(45deg) translate(-20px, -20px);
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(45deg) translate(20px, 20px);
+  }
+}
+
+.active {
+  background-color: #276afd;
+  color: white;
+}
+
+.inactive {
+  background-color: white;
+  color: #9b9b9b;
+}
+.activePassenger {
+  background-color: #c0cde6;
+}
+.activePassengerFemale {
+  background-color: #ffccff;
+}
+.activeGender {
+  background-color: black;
+  color: white;
+}
+.fin {
+  position: absolute;
+  left: 47%;
+  top: 160%;
+}
+.Travelo_fin {
+  text-align: center;
+  font-family: Outfit;
+  color: black;
+  font-size: 40px;
+  font-weight: 600;
+}
