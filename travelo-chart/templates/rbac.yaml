@@ -1,0 +1,137 @@
+# =============================================================================
+# RBAC — Role-Based Access Control for the travelo namespace
+#
+# Design philosophy:
+#   - Principle of Least Privilege: each ServiceAccount gets only the minimum
+#     permissions needed for its workload to function.
+#   - Separate ServiceAccounts per component (frontend, backend) so that
+#     a compromise of one does not grant access to another.
+#   - No ClusterRole is used — all roles are namespace-scoped (Role),
+#     ensuring isolation from other namespaces in the cluster.
+# =============================================================================
+
+# --- Service Accounts --------------------------------------------------------
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: travelo-backend-sa
+
+  labels:
+    app.kubernetes.io/name: travelo-backend
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/part-of: travelo-app
+automountServiceAccountToken: false   # Disable auto-mount; backend does not need K8s API access
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: travelo-frontend-sa
+
+  labels:
+    app.kubernetes.io/name: travelo-frontend
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: travelo-app
+automountServiceAccountToken: false   # Nginx does not need K8s API access
+
+---
+# A dedicated service account for operators/CI to read pod status in the namespace
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: travelo-operator-sa
+
+  labels:
+    app.kubernetes.io/part-of: travelo-app
+
+---
+# --- Roles -------------------------------------------------------------------
+
+# =============================================================================
+# ROLE: travelo-pod-reader
+# Allows listing and reading pods, services, and events in the namespace.
+# Assigned to: travelo-operator-sa (used by monitoring tools, CI pipelines).
+# =============================================================================
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: travelo-pod-reader
+
+  labels:
+    app.kubernetes.io/part-of: travelo-app
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "services", "endpoints", "events"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets", "statefulsets"]
+    verbs: ["get", "list", "watch"]
+
+---
+# =============================================================================
+# ROLE: travelo-secret-reader
+# Allows the backend pod to read its own secrets (optional: used if secrets
+# are fetched at runtime rather than injected as env vars).
+# Scoped to only the secrets relevant to the backend.
+# =============================================================================
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: travelo-backend-secret-reader
+
+  labels:
+    app.kubernetes.io/part-of: travelo-app
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["travelo-backend-secret"]   # Only this specific secret
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames: ["travelo-backend-config"]
+    verbs: ["get"]
+
+---
+# --- RoleBindings ------------------------------------------------------------
+
+# =============================================================================
+# ROLEBINDING: operator-pod-reader-binding
+# Grants the operator service account read access to the namespace.
+# =============================================================================
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: travelo-operator-pod-reader-binding
+
+  labels:
+    app.kubernetes.io/part-of: travelo-app
+subjects:
+  - kind: ServiceAccount
+    name: travelo-operator-sa
+  
+roleRef:
+  kind: Role
+  name: travelo-pod-reader
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# =============================================================================
+# ROLEBINDING: backend-secret-reader-binding
+# Grants the backend service account access to its secret.
+# =============================================================================
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: travelo-backend-secret-reader-binding
+
+  labels:
+    app.kubernetes.io/part-of: travelo-app
+subjects:
+  - kind: ServiceAccount
+    name: travelo-backend-sa
+  
+roleRef:
+  kind: Role
+  name: travelo-backend-secret-reader
+  apiGroup: rbac.authorization.k8s.io

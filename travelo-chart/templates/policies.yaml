@@ -1,0 +1,238 @@
+# =============================================================================
+# PODDISRUPTIONBUDGET — Availability During Voluntary Disruptions
+#
+# PDBs ensure that during maintenance operations (node drains, cluster upgrades,
+# rolling updates), a minimum number of pods remain available.
+# This prevents Kubernetes from evicting all pods of a Deployment simultaneously.
+# =============================================================================
+
+# Frontend PDB: At least 1 replica available at all times (out of 2)
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: travelo-frontend-pdb
+
+  labels:
+    app.kubernetes.io/name: travelo-frontend
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: travelo-app
+spec:
+  minAvailable: 1   # At least 1 pod must stay running during disruptions
+  selector:
+    matchLabels:
+      app: travelo-frontend
+
+---
+# Backend PDB: At least 1 replica available at all times (out of 2)
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: travelo-backend-pdb
+
+  labels:
+    app.kubernetes.io/name: travelo-backend
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/part-of: travelo-app
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: travelo-backend
+
+---
+# Database PDB: The StatefulSet has 1 replica — ensure it is never evicted
+# (use maxUnavailable: 0 to block eviction; the DB must be migrated manually)
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: travelo-database-pdb
+
+  labels:
+    app.kubernetes.io/name: travelo-database
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: travelo-app
+spec:
+  maxUnavailable: 0   # Never allow the database pod to be evicted
+  selector:
+    matchLabels:
+      app: travelo-database
+
+---
+# =============================================================================
+# RESOURCEQUOTA — Namespace-Level Resource Governance
+#
+# Prevents a single namespace from consuming all cluster resources.
+# Enforces governance and prevents resource starvation of other tenants.
+# =============================================================================
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: travelo-resource-quota
+
+  labels:
+    app.kubernetes.io/part-of: travelo-app
+spec:
+  hard:
+    # Compute resources
+    requests.cpu: "2"           # Total CPU requests across all pods
+    requests.memory: "2Gi"      # Total memory requests
+    limits.cpu: "4"             # Total CPU limits
+    limits.memory: "4Gi"        # Total memory limits
+    # Object counts
+    pods: "20"                  # Max number of pods
+    services: "10"
+    secrets: "20"
+    configmaps: "20"
+    persistentvolumeclaims: "5"
+
+---
+# =============================================================================
+# LIMITRANGE — Default Resource Limits for Containers Without Explicit Limits
+#
+# If a container is deployed without resource requests/limits, LimitRange
+# automatically applies these defaults. This is a safety net.
+# =============================================================================
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: travelo-limit-range
+
+  labels:
+    app.kubernetes.io/part-of: travelo-app
+spec:
+  limits:
+    - type: Container
+      default:             # Applied when no limit is specified
+        cpu: "500m"
+        memory: "256Mi"
+      defaultRequest:      # Applied when no request is specified
+        cpu: "100m"
+        memory: "128Mi"
+      max:                 # Hard ceiling for any container in this namespace
+        cpu: "2"
+        memory: "2Gi"
+      min:                 # Minimum resources any container must request
+        cpu: "50m"
+        memory: "64Mi"
+
+---
+# =============================================================================
+# NETWORKPOLICY — Micro-Segmentation (Zero-Trust Networking)
+#
+# By default, Kubernetes allows all pod-to-pod communication within a cluster.
+# NetworkPolicies enforce which pods can communicate with which, implementing
+# the principle of least privilege at the network layer.
+#
+# PREREQUISITE: Your CNI plugin must support NetworkPolicies
+# (Calico, Cilium, Weave — NOT Flannel alone).
+# For Minikube: minikube start --cni=calico
+# =============================================================================
+
+# Frontend: Can only receive traffic from the Gateway, cannot initiate outbound
+# to the database (only backend can talk to DB).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: travelo-frontend-netpol
+
+  labels:
+    app.kubernetes.io/part-of: travelo-app
+spec:
+  podSelector:
+    matchLabels:
+      app: travelo-frontend
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow incoming traffic on port 80 from anywhere (Gateway will be the source)
+    - ports:
+        - protocol: TCP
+          port: 80
+  egress:
+    # Allow DNS resolution
+    - ports:
+        - protocol: UDP
+          port: 53
+    # Allow frontend Nginx to proxy_pass to the backend
+    - to:
+        - podSelector:
+            matchLabels:
+              app: travelo-backend
+      ports:
+        - protocol: TCP
+          port: 8080
+
+---
+# Backend: Can receive from frontend and gateway, can only reach the database.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: travelo-backend-netpol
+
+  labels:
+    app.kubernetes.io/part-of: travelo-app
+spec:
+  podSelector:
+    matchLabels:
+      app: travelo-backend
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Accept traffic from frontend pods
+    - from:
+        - podSelector:
+            matchLabels:
+              app: travelo-frontend
+      ports:
+        - protocol: TCP
+          port: 8080
+    # Accept traffic from Gateway (no specific pod label — Gateway runs in its own NS)
+    - ports:
+        - protocol: TCP
+          port: 8080
+  egress:
+    # DNS
+    - ports:
+        - protocol: UDP
+          port: 53
+    # Connect to database
+    - to:
+        - podSelector:
+            matchLabels:
+              app: travelo-database
+      ports:
+        - protocol: TCP
+          port: 3306
+
+---
+# Database: Only accessible from the backend.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: travelo-database-netpol
+
+  labels:
+    app.kubernetes.io/part-of: travelo-app
+spec:
+  podSelector:
+    matchLabels:
+      app: travelo-database
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # ONLY accept connections from backend pods
+    - from:
+        - podSelector:
+            matchLabels:
+              app: travelo-backend
+      ports:
+        - protocol: TCP
+          port: 3306
+  egress:
+    # DNS only (no outbound except DNS)
+    - ports:
+        - protocol: UDP
+          port: 53

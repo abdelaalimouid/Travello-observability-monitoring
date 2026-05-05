@@ -1,0 +1,143 @@
+# =============================================================================
+# GATEWAY API — External Access Configuration
+#
+# The Kubernetes Gateway API is the successor to Ingress. It provides:
+#   - Role-oriented model (GatewayClass, Gateway, HTTPRoute)
+#   - Richer routing (header-based, weight-based, path rewrites)
+#   - Separation of infrastructure (Gateway) from application (HTTPRoute)
+#
+# PREREQUISITES:
+#   Install Gateway API CRDs and a controller before applying these manifests.
+#   For Minikube with NGINX Gateway Fabric:
+#
+#     # 1. Install Gateway API CRDs
+#     kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.0/standard-install.yaml
+#
+#     # 2. Install NGINX Gateway Fabric controller
+#     kubectl apply -f https://raw.githubusercontent.com/nginxinc/nginx-gateway-fabric/v1.4.0/deploy/crds.yaml
+#     kubectl apply -f https://raw.githubusercontent.com/nginxinc/nginx-gateway-fabric/v1.4.0/deploy/default/deploy.yaml
+#
+#   For Minikube with Envoy Gateway (alternative):
+#     helm install eg oci://docker.io/envoyproxy/gateway-helm \
+#       --version v1.1.0 -n envoy-gateway-system --create-namespace
+# =============================================================================
+
+# =============================================================================
+# GATEWAYCLASS: nginx
+# References the NGINX Gateway Fabric controller installed cluster-wide.
+# GatewayClass is cluster-scoped (no namespace).
+# =============================================================================
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: nginx
+  labels:
+    app.kubernetes.io/part-of: travelo-app
+spec:
+  # This value must match the controllerName of the installed Gateway controller
+  controllerName: gateway.nginx.org/nginx-gateway-controller
+
+---
+# =============================================================================
+# GATEWAY: travelo-gateway
+# Defines the entry point: listens on port 80 for HTTP traffic.
+# Routes are managed by HTTPRoute resources in the "travelo" namespace.
+# The Gateway is placed in the travelo namespace (application-owned gateway).
+# =============================================================================
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: travelo-gateway
+
+  labels:
+    app.kubernetes.io/name: travelo-gateway
+    app.kubernetes.io/part-of: travelo-app
+spec:
+  gatewayClassName: nginx
+  listeners:
+    - name: http
+      port: 80
+      protocol: HTTP
+      # Allow HTTPRoute resources from the same namespace (travelo) to attach
+      allowedRoutes:
+        namespaces:
+          from: Same
+
+---
+# =============================================================================
+# HTTPROUTE: travelo-backend-route
+# Routes /api and /api/* requests to the backend Spring Boot service.
+#
+# Path rewrite: The backend Spring Boot app serves endpoints at /api/...
+# We strip the /api prefix so that /api/flights → /flights on the backend.
+# Adjust the rewrite if your Spring Boot controllers include /api in their path.
+# =============================================================================
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: travelo-backend-route
+
+  labels:
+    app.kubernetes.io/name: travelo-backend-route
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/part-of: travelo-app
+spec:
+  parentRefs:
+    - name: travelo-gateway
+    
+      sectionName: http
+  rules:
+    # Route /api and all sub-paths to the backend service
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api
+      backendRefs:
+        - name: travelo-backend
+          port: 8080
+          weight: 1
+
+    # Also route /actuator paths for external monitoring access (optional)
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /actuator
+      backendRefs:
+        - name: travelo-backend
+          port: 8080
+          weight: 1
+
+---
+# =============================================================================
+# HTTPROUTE: travelo-frontend-route
+# Routes all other traffic (/) to the frontend Nginx service.
+# This must be a lower-priority match than the backend route — the Gateway
+# processes rules top-to-bottom, so the /api route above takes precedence.
+# =============================================================================
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: travelo-frontend-route
+
+  labels:
+    app.kubernetes.io/name: travelo-frontend-route
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: travelo-app
+spec:
+  parentRefs:
+    - name: travelo-gateway
+    
+      sectionName: http
+  # Optional: bind to travelo.local hostname (add to /etc/hosts for local dev)
+  hostnames:
+    - "travelo.local"
+  rules:
+    # Catch-all: route everything else to the frontend (SPA handles routing)
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: travelo-frontend
+          port: 80
+          weight: 1

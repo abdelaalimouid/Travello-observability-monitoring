@@ -1,0 +1,46 @@
+# =============================================================================
+# CONFIGMAP: travelo-db-config
+# Non-sensitive database configuration. Sensitive values (passwords) are
+# stored separately in Secrets (02-secret.yaml) — separation of concerns.
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: travelo-db-config
+
+  labels:
+    app.kubernetes.io/name: travelo-database
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: travelo-app
+data:
+  # The database name to create on first boot
+  MYSQL_DATABASE: "travelo_db"
+  # Allow connections from any host within the cluster
+  MYSQL_ROOT_HOST: "%"
+
+---
+# =============================================================================
+# CONFIGMAP: travelo-backend-config
+# Non-sensitive Spring Boot configuration. The JDBC URL references the
+# StatefulSet headless service "travelo-database" which resolves via cluster DNS.
+# Prometheus metrics endpoint is exposed for the monitoring stack (Part 4).
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: travelo-backend-config
+
+  labels:
+    app.kubernetes.io/name: travelo-backend
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/part-of: travelo-app
+data:
+  # K8s DNS resolves "travelo-database" to the ClusterIP service in the same namespace
+  SPRING_DATASOURCE_URL: "jdbc:mysql://travelo-database:3306/travelo_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
+  # Active Spring profile
+  SPRING_PROFILES_ACTIVE: "prod"
+  # Expose Actuator endpoints for health probes and Prometheus scraping
+  MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health,info,metrics,prometheus"
+  MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS: "always"
+  # Disable HikariCP initialization timeout (database may still be starting)
+  SPRING_DATASOURCE_HIKARI_INITIALIZATIONFAILTIMEOUT: "-1"

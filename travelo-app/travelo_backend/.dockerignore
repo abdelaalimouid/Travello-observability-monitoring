@@ -1,0 +1,15 @@
+target/
+*.jar
+*.war
+.idea/
+.vscode/
+*.iml
+.git/
+.gitignore
+.DS_Store
+.env
+.env.*
+*.local
+logs/
+*.log
+surefire-reports/

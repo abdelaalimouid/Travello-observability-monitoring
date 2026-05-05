@@ -6,7 +6,6 @@ metadata:
 spec:
   project: default
   source:
-    # Replace with your actual GitHub repo URL
     repoURL: https://github.com/BilalZiyane1/travelo-k8s-manifests.git
     targetRevision: main
     path: k8s/base
@@ -15,7 +14,9 @@ spec:
     namespace: travelo
   syncPolicy:
     automated:
-      prune: true      # Remove resources deleted from Git
-      selfHeal: true   # Fix manual changes that drift from Git
+      prune: false
+      selfHeal: false
     syncOptions:
       - CreateNamespace=true
+      - ServerSideApply=true
+      - Replace=true

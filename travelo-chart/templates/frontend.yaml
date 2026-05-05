@@ -1,0 +1,169 @@
+# =============================================================================
+# SERVICE: travelo-frontend (ClusterIP)
+# Internal service. The Gateway HTTPRoute forwards "/" traffic here.
+# Port 80 matches the Nginx container port.
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: travelo-frontend
+
+  labels:
+    app.kubernetes.io/name: travelo-frontend
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: travelo-app
+spec:
+  type: ClusterIP
+  selector:
+    app: travelo-frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+      protocol: TCP
+
+---
+# =============================================================================
+# DEPLOYMENT: travelo-frontend
+# React SPA served by Nginx is stateless. The nginx.conf from the Docker image
+# already handles SPA routing (try_files) and /api proxy_pass to the backend.
+# In Kubernetes, the proxy_pass target resolves via cluster DNS to
+# the travelo-backend ClusterIP service.
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: travelo-frontend
+
+  labels:
+    app.kubernetes.io/name: travelo-frontend
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: travelo-app
+    app.kubernetes.io/version: "1.0.1"
+spec:
+  replicas: 2    # HA: two Nginx instances
+  selector:
+    matchLabels:
+      app: travelo-frontend
+  # ---------------------------------------------------------------------------
+  # Rolling update: React/Nginx starts in <5s, so we can afford maxUnavailable=1
+  # This means one old pod is removed while a new one starts simultaneously.
+  # ---------------------------------------------------------------------------
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: travelo-frontend
+        app.kubernetes.io/name: travelo-frontend
+        app.kubernetes.io/component: frontend
+        app.kubernetes.io/part-of: travelo-app
+    spec:
+      # -----------------------------------------------------------------------
+      # Security: Nginx built-in user "nginx" runs as UID 101 in Alpine image.
+      # The Dockerfile already chowns the HTML dir and PID file to this user.
+      # -----------------------------------------------------------------------
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101          # nginx user in nginx:alpine
+        runAsGroup: 101
+        fsGroup: 101
+
+      # -----------------------------------------------------------------------
+      # Spread replicas across nodes
+      # -----------------------------------------------------------------------
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: travelo-frontend
+
+      serviceAccountName: travelo-frontend-sa
+
+      containers:
+        - name: frontend
+          image: youssefysdata/travelo-frontend:1.0.1
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+
+          # -------------------------------------------------------------------
+          # Resource Governance
+          # Nginx is lightweight — lower limits than the backend.
+          # -------------------------------------------------------------------
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "500m"
+              memory: "128Mi"
+
+          # -------------------------------------------------------------------
+          # Probes
+          # startupProbe: Nginx starts in <2s; short window is fine.
+          # readinessProbe: Check the /health endpoint defined in nginx.conf.
+          # livenessProbe: Restart if Nginx master process is hung.
+          # -------------------------------------------------------------------
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 6     # 30s startup window
+
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          # -------------------------------------------------------------------
+          # Container security
+          # Nginx needs to write PID file and cache — not fully read-only FS.
+          # We mount tmpfs volumes for writable paths instead.
+          # -------------------------------------------------------------------
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+
+          # Nginx writable directories mounted as emptyDir (tmpfs in memory)
+          volumeMounts:
+            - name: nginx-cache
+              mountPath: /var/cache/nginx
+            - name: nginx-run
+              mountPath: /var/run
+            - name: nginx-tmp
+              mountPath: /tmp
+
+      volumes:
+        - name: nginx-cache
+          emptyDir: {}
+        - name: nginx-run
+          emptyDir: {}
+        - name: nginx-tmp
+          emptyDir: {}
+
+      terminationGracePeriodSeconds: 30

@@ -1,0 +1,13 @@
+# =============================================================================
+# NAMESPACE: travelo
+# Isolates all Travelo application resources from other workloads in the cluster.
+# Labels follow the Kubernetes recommended labeling convention.
+# =============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: travelo
+  labels:
+    app.kubernetes.io/name: travelo
+    app.kubernetes.io/part-of: travelo-app
+    environment: production

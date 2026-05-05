@@ -1,0 +1,14 @@
+apiVersion: v2
+name: travelo
+description: Helm Chart for the Travelo 3-tier flight booking application
+type: application
+version: 1.0.0
+appVersion: '1.0.1'
+keywords:
+  - travelo
+  - spring-boot
+  - react
+  - mysql
+maintainers:
+  - name: NeoTech Team
+    email: bilal.ziyane1@gmail.com
