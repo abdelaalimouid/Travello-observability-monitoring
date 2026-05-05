@@ -1,0 +1,42 @@
+# IDE
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude
+.claude/
+
+# Reports & docs (kept locally, not in repo)
+*.docx
+*.pdf
+Travelo_Volet3_Report.md
+
+# Node
+node_modules/
+dist/
+build/
+
+# Java
+target/
+*.class
+*.jar
+!travelo-app/travelo_backend/.mvn/**
+
+# Python
+__pycache__/
+*.pyc
+venv/
+
+# Env
+.env
+*.env.local
+
+# Logs
+*.log
