@@ -1,0 +1,40 @@
+apiVersion: skaffold/v4beta11
+kind: Config
+metadata:
+  name: travelo
+
+build:
+  artifacts:
+    - image: youssefysdata/travelo-backend
+      context: travelo_backend
+      docker:
+        dockerfile: Dockerfile
+    - image: youssefysdata/travelo-frontend
+      context: travelo_frontend
+      docker:
+        dockerfile: Dockerfile
+  local:
+    push: true
+    useBuildkit: true
+
+manifests:
+  rawYaml:
+    - /home/bilalziyane/projetAllaki/k8s/base/namespace.yaml
+    - /home/bilalziyane/projetAllaki/k8s/base/configmaps.yaml
+    - /home/bilalziyane/projetAllaki/k8s/base/secrets.yaml
+    - /home/bilalziyane/projetAllaki/k8s/base/rbac.yaml
+    - /home/bilalziyane/projetAllaki/k8s/base/policies.yaml
+    - /home/bilalziyane/projetAllaki/k8s/base/statefulset.yaml
+    - /home/bilalziyane/projetAllaki/k8s/base/backend.yaml
+    - /home/bilalziyane/projetAllaki/k8s/base/deployment.yaml
+    - /home/bilalziyane/projetAllaki/k8s/base/gateway.yaml
+
+deploy:
+  kubectl: {}
+
+portForward:
+  - resourceType: service
+    resourceName: travelo-frontend
+    namespace: travelo
+    port: 80
+    localPort: 8888
