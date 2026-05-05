@@ -1,0 +1,30 @@
+apiVersion: mysql.oracle.com/v2
+kind: InnoDBCluster
+metadata:
+  name: travelo-database
+  namespace: travelo
+  labels:
+    app.kubernetes.io/name: travelo-database
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: travelo-app
+spec:
+  secretName: mysql-root-secret
+  instances: 1
+  tlsUseSelfSigned: true
+  router:
+    instances: 1
+  datadirVolumeClaimTemplate:
+    accessModes: ["ReadWriteOnce"]
+    resources:
+      requests:
+        storage: 2Gi
+  podSpec:
+    containers:
+      - name: mysql
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "512Mi"
+          limits:
+            cpu: "1000m"
+            memory: "1Gi"
