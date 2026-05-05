@@ -41,7 +41,7 @@ metadata:
     app.kubernetes.io/part-of: travelo-app
     app.kubernetes.io/version: "1.0.1"
 spec:
-  replicas: 2    # HA: two Nginx instances
+  replicas: 3    # HA: two Nginx instances
   selector:
     matchLabels:
       app: travelo-frontend
