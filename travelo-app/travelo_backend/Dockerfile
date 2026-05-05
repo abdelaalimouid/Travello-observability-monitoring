@@ -1,4 +1,4 @@
-FROM maven:3.9.9-eclipse-temurin-21-alpine AS builder
+FROM maven:3.9.9-eclipse-temurin-23-alpine AS builder
 
 WORKDIR /app
 
@@ -9,7 +9,7 @@ COPY src ./src
 
 RUN --mount=type=cache,target=/root/.m2 mvn package -DskipTests -B
 
-FROM eclipse-temurin:21-jre-alpine AS runtime
+FROM eclipse-temurin:23-jre-alpine AS runtime
 
 RUN apk add --no-cache wget
 
