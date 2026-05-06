@@ -40,7 +40,7 @@ spec:
       containers:
         - name: backend
           image: youssefysdata/travelo-backend:1.0.1
-          imagePullPolicy: Always
+          imagePullPolicy: Never
           ports:
             - containerPort: 8080
           envFrom:

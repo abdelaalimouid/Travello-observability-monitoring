@@ -88,7 +88,7 @@ spec:
       containers:
         - name: frontend
           image: youssefysdata/travelo-frontend:1.0.1
-          imagePullPolicy: Always
+          imagePullPolicy: Never
           ports:
             - name: http
               containerPort: 80
