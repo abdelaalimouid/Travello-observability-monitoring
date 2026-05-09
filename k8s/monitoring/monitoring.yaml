@@ -1,10 +1,11 @@
 # =============================================================================
-# MONITORING STACK — Prometheus + Grafana + Loki + Node Exporter + KSM
+# MONITORING STACK — Prometheus + AlertManager + Grafana + Loki + Node Exporter + KSM
 #
 # Architecture:
 #   Node Exporter  → exposes host CPU/RAM/disk/network metrics on :9100
 #   Kube-State-Metrics → exposes K8s object state (pods, deployments) on :8080
 #   Prometheus ← scrapes → node-exporter, kube-state-metrics, Spring Boot Actuator
+#   AlertManager ← receives alerts from Prometheus → sends to Telegram
 #   Grafana    ← queries → Prometheus (metrics) + Loki (logs)
 #   Loki       ← receives logs from → Promtail (DaemonSet on each node)
 #   Promtail   ← tails pod logs on host → forwards to Loki
@@ -296,6 +297,14 @@ data:
       scrape_interval: 15s
       evaluation_interval: 15s
 
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets: ['alertmanager:9093']
+
+    rule_files:
+      - /etc/prometheus/alert-rules.yml
+
     scrape_configs:
       # Kubernetes API server
       - job_name: 'kubernetes-apiservers'
@@ -364,6 +373,94 @@ data:
             regex: '(.*):10250'
             replacement: '${1}:9100'
             target_label: __address__
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-alert-rules
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: prometheus
+    app.kubernetes.io/part-of: travelo-monitoring
+data:
+  alert-rules.yml: |
+    groups:
+      - name: infrastructure
+        rules:
+          - alert: HighCpuUsage
+            expr: 1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) > 0.80
+            for: 2m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High CPU usage on {{ $labels.instance }}"
+              description: "CPU usage is above 80% for more than 2 minutes (current: {{ $value | humanizePercentage }})"
+
+          - alert: HighMemoryUsage
+            expr: (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) > 0.85
+            for: 2m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High memory usage on {{ $labels.instance }}"
+              description: "Memory usage is above 85% for more than 2 minutes (current: {{ $value | humanizePercentage }})"
+
+          - alert: DiskSpaceRunningLow
+            expr: (1 - node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"}) > 0.85
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Disk space low on {{ $labels.instance }} ({{ $labels.mountpoint }})"
+              description: "Disk usage is above 85% (current: {{ $value | humanizePercentage }})"
+
+      - name: application
+        rules:
+          - alert: PodCrashLooping
+            expr: increase(kube_pod_container_status_restarts_total{namespace="travelo"}[10m]) > 3
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Pod {{ $labels.pod }} is crash looping"
+              description: "Container {{ $labels.container }} in pod {{ $labels.pod }} has restarted {{ $value }} times in the last 10 minutes"
+
+          - alert: PodNotReady
+            expr: kube_pod_status_ready{namespace="travelo", condition="true"} == 0
+            for: 3m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Pod {{ $labels.pod }} is not ready"
+              description: "Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} has been in a non-ready state for more than 3 minutes"
+
+          - alert: DeploymentReplicasMismatch
+            expr: kube_deployment_status_replicas_available{namespace="travelo"} < kube_deployment_spec_replicas{namespace="travelo"}
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Deployment {{ $labels.deployment }} has unavailable replicas"
+              description: "{{ $labels.deployment }} has {{ $value }} available replicas but {{ $labels.deployment }} desires more"
+
+          - alert: HighHttpErrorRate
+            expr: sum by (kubernetes_pod_name) (rate(http_server_requests_seconds_count{kubernetes_namespace="travelo", status=~"5.."}[5m])) / sum by (kubernetes_pod_name) (rate(http_server_requests_seconds_count{kubernetes_namespace="travelo"}[5m])) > 0.05
+            for: 2m
+            labels:
+              severity: critical
+            annotations:
+              summary: "High HTTP 5xx error rate on {{ $labels.kubernetes_pod_name }}"
+              description: "More than 5% of HTTP requests are returning 5xx errors"
+
+          - alert: HighHttpLatency
+            expr: http_server_requests_seconds_max{kubernetes_namespace="travelo"} > 2
+            for: 3m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High HTTP latency on {{ $labels.kubernetes_pod_name }}"
+              description: "Max HTTP response time is above 2 seconds (current: {{ $value }}s)"
 
 ---
 apiVersion: v1
@@ -441,7 +538,11 @@ spec:
               memory: "1Gi"
           volumeMounts:
             - name: config
-              mountPath: /etc/prometheus
+              mountPath: /etc/prometheus/prometheus.yml
+              subPath: prometheus.yml
+            - name: alert-rules
+              mountPath: /etc/prometheus/alert-rules.yml
+              subPath: alert-rules.yml
             - name: data
               mountPath: /prometheus
           livenessProbe:
@@ -460,6 +561,9 @@ spec:
         - name: config
           configMap:
             name: prometheus-config
+        - name: alert-rules
+          configMap:
+            name: prometheus-alert-rules
         - name: data
           emptyDir: {}
 
@@ -1381,3 +1485,123 @@ spec:
         - name: varlibdockercontainers
           hostPath:
             path: /var/lib/docker/containers
+
+# =============================================================================
+# ALERTMANAGER — Receives alerts from Prometheus, sends to Telegram
+# =============================================================================
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: alertmanager
+    app.kubernetes.io/part-of: travelo-monitoring
+data:
+  alertmanager.yml: |
+    global:
+      resolve_timeout: 5m
+      telegram_api_url: 'https://api.telegram.org'
+
+    route:
+      group_by: ['alertname', 'namespace']
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+      receiver: 'telegram'
+
+    receivers:
+      - name: 'telegram'
+        telegram_configs:
+          - bot_token: '<TELEGRAM_BOT_TOKEN>'
+            chat_id: <TELEGRAM_CHAT_ID>
+            parse_mode: 'HTML'
+            send_resolved: true
+            message: |
+              {{ if eq .Status "firing" }}🔥 <b>ALERT FIRING</b>{{ else }}✅ <b>RESOLVED</b>{{ end }}
+              {{ range .Alerts }}
+              <b>Alert:</b> {{ .Labels.alertname }}
+              <b>Severity:</b> {{ .Labels.severity }}
+              {{ if .Annotations.summary }}<b>Summary:</b> {{ .Annotations.summary }}{{ end }}
+              {{ if .Annotations.description }}<b>Details:</b> {{ .Annotations.description }}{{ end }}
+              {{ end }}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alertmanager
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: alertmanager
+    app.kubernetes.io/part-of: travelo-monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alertmanager
+  template:
+    metadata:
+      labels:
+        app: alertmanager
+    spec:
+      containers:
+        - name: alertmanager
+          image: prom/alertmanager:v0.27.0
+          args:
+            - "--config.file=/etc/alertmanager/alertmanager.yml"
+            - "--storage.path=/alertmanager"
+          ports:
+            - containerPort: 9093
+              name: http
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+          volumeMounts:
+            - name: config
+              mountPath: /etc/alertmanager
+            - name: data
+              mountPath: /alertmanager
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: 9093
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: 9093
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: config
+          configMap:
+            name: alertmanager-config
+        - name: data
+          emptyDir: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: alertmanager
+    app.kubernetes.io/part-of: travelo-monitoring
+spec:
+  type: NodePort
+  selector:
+    app: alertmanager
+  ports:
+    - name: http
+      port: 9093
+      targetPort: 9093
+      nodePort: 30093
+
